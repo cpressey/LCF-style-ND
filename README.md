@@ -28,11 +28,11 @@ Some Observations
 
 Now, some observations about LCF-style theorem provers:
 
-(1) This is fundamentally an application of "[Parse, don't Validate]()".
+(1) This is fundamentally an application of "[Parse, don't Validate][]".
 
 (2) This doesn't rely on a static type system.  Rather, it relies
 on _encapsulation_ a.k.a. _information hiding_.
-[You could write it in Scheme][]], even though a type theorist
+[You could write it in Scheme][], even though a type theorist
 would call Scheme an "untyped" language.  (The rest of the world would
 probably call it "dynamically typed" or "latently typed".)
 

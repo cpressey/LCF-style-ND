@@ -83,11 +83,31 @@ corresponds to the fact that the data type representing valid
 proofs is embedded in a general-purpose programming language, in
 which we can build arbitrary contrivances to help us work with them.
 
+### Some Observations
+
+An ND proof may be presented in a tree format or in a list format.
+An LCF-style proof in an applicative language is a set of function
+applications, which has the shape of a tree.  If we bind each
+application to an identifier (as in a `let`-type construct) we obtain
+a flattened list, where each proof step (application) may refer to
+earlier proof steps.
+
+In the tree format, assumptions are labelled when introduced, so
+that when an assumption is discharged, we know which one it is.
+In the list format, nested boxes can be used to serve the same purpose.
+This seems akin to labelled assumptions having _dynamic scope_
+versus nested assumptions having _lexical scope_.  Our theorem prover
+will use labels for simplicity.
+
 Code for the Theorem Prover
 ---------------------------
 
-To avoid the question of what programming language to write this
-theorem prover in, let's write it in pseudo-code.
+It would seem that the ideal language in which to demonstrate the
+things I'm trying to demonstrate here would be a dynamically-typed
+language with readable language constructs for encapsulation.
+Unfortunately, such languages are not common, and certainly not
+mainstream.  So to avoid the question of what programming language
+use, let's write this theorem prover in pseudo-code.
 
 Assume we have the usual assortment of primitive types in the
 language, and some way to define records containing multiple
@@ -95,22 +115,36 @@ values, and some way to hide the representation of these records
 from every part of the program, except inside the definition of
 our operations.
 
-The record we will use to represent a valid proof contains
-two elements:
+The record we will use to represent a valid proof, the
+constructor for which we will denote with `ValidProof`,
+contains two elements:
 
 *   the logical expression which is the proved statement
 *   a mapping from labels to logical expressions, which are
     the assumptions that have been introduced.
 
+Logical expressions are themselves a record structure of
+some sort, with constructors according to its structure
+such as `Conj`, `Disj`, `Impl`, `Prop` and so forth.
+However, unlike `ValidProof`, the representation of these
+will not be hidden from client code.  In fact it will be
+useful for client code to manipulate logical expressions
+as much as it likes.
+
+In addition, we will assume there is some kind of `Dict`
+structure which can contain a mapping from values to values.
+
 The basic operation to produce a trivial valid proof takes
 a logical expression and a label and produces a proof with
 that expression as an assumption.  Something like:
 
-    def suppose(expr, label) =
-        return ValidProof(
-            statement=expr,
-            assumptions={ label: expr }
-        )
+    function suppose(expr, label):
+        local assm := new Dict{}
+        assm[label] := expr
+        return new ValidProof{
+            statement: expr,
+            assumptions: assm
+        }
 
 We will also have a set of operations that represent inference
 rules.  Inference rules such as conjunction-introduction seem
@@ -125,34 +159,27 @@ as such.
 To achieve these ends we would benefit from defining a helper
 function, something like:
 
-    def merge_assumptions(a, b) =
+    function merge_assumptions(a, b):
         local c := copy_of(b)
         for each (key, value) in a:
             if key not in c:
                 c[key] := value
             else if c[key] != value:
-                raise Error("Inconsistent labelling")
+                throw Error("Inconsistent labelling")
         return c
 
 Now we can write the operation corresponding to the inference
 rule of conjunction-introduction:
 
-    def conj_intro(p, q) =
+    function conj_intro(p, q):
         assert p is_a ValidProof
         assert q is_a ValidProof
-        return ValidProof(
-            statement=Conj(p.statement, q.statement),
-            assumptions=merge_assumptions(
+        return new ValidProof{
+            statement: new Conj(p.statement, q.statement),
+            assumptions: merge_assumptions(
                 p.assumptions, q.assumptions
             )
-        )
-
-Conj is some sort of constructor that takes two
-logical expressions and returns a new logical expression
-that is their conjunction; unlike ValidProof, there is no
-harm for users of these operations to know about the
-structure of (and thus be able to manipulate) logical
-expressions.
+        }
 
 We did conjunction-introduction first because it is very
 simple, but it is correspondingly not very exciting, and
@@ -162,16 +189,16 @@ of inference rules that will let us write a small, but
 meaningful, proof.  Here is implication-elimination, also
 known as _modus ponens_:
 
-    def impl_elim(p, q) =
+    function impl_elim(p, q):
         assert p is_a ValidProof
         assert p.statement is_a Impl
         assert p.statement.lhs == q
-        return ValidProof(
-            statement=p.statement.rhs,
-            assumptions=merge_assumptions(
+        return new ValidProof{
+            statement: p.statement.rhs,
+            assumptions: merge_assumptions(
                 p.assumptions, q.assumptions
             )
-        )
+        }
 
 This is a little more complex than conjunction-introduction
 because we're examining the structure of one of the logical
@@ -183,14 +210,15 @@ this assumption, we will pass in its label.  An assumption
 with that label must be present on the ValidProof that we
 also pass in.
 
-    def impl_intro(p, label) =
+    function impl_intro(p, label):
         assert p is_a ValidProof
         assert label in p.assumptions
-        local a := copy_of(p.assumptions)
-        del a[label]
-        return ValidProof(
-            statement=Impl(p.assumptions[label], p)
-            assumptions=a
+        local assm := copy_of(p.assumptions)
+        local r := assm[label]
+        delete assm[label]
+        return ValidProof{
+            statement: new Impl(r, p),
+            assumptions: assm
         )
 
 We now have enough operations to demonstrate a simple proof.

@@ -210,18 +210,84 @@ this assumption, we will pass in its label.  An assumption
 with that label must be present on the ValidProof that we
 also pass in.
 
-    function impl_intro(p, label):
-        assert p is_a ValidProof
-        assert label in p.assumptions
-        local assm := copy_of(p.assumptions)
-        local r := assm[label]
+    function impl_intro(label, q):
+        assert q is_a ValidProof
+        assert label in q.assumptions
+        local assm := copy_of(q.assumptions)
+        local p := assm[label]
         delete assm[label]
-        return ValidProof{
-            statement: new Impl(r, p),
+        return new ValidProof{
+            statement: new Impl(p, q),
             assumptions: assm
         )
 
 We now have enough operations to demonstrate a simple proof.
+We'll follow the proof of the statement given in section 5a
+of the IEP article:
+
+    (p → q) → ((q → r) → (p → r))
+
+Our function application that corresponds to that proof is
+
+    impl_intro(
+        3,
+        impl_intro(
+            2,
+            impl_intro(
+                1,
+                impl_elim(
+                    impl_elim(
+                        suppose(«p», 1),
+                        suppose(«p → q», 3)
+                    ),
+                    suppose(«q → r», 2)
+                )
+            )
+        )
+    )
+
+The guillemet-quoted strings are just intended to be a convenient
+way to write a logical expression (instead of something like
+`Impl(Prop("p"), Prop("q")))` which would be much clumsier).
+
+The formatting of this function application is intentionally
+very tree-like, to try to make it clearer how it corresponds
+with the tree presentation of the proof in the IEP article.
+
+The glaring difference is, of course, that the nodes of the
+tree in the proper tree-structured proof show the sentence of
+the valid proof at each step, while in the function application,
+that valid proof is merely being passed as a parameter to the
+enclosing function, and not shown in the source code.
+
+Even if we were alright with omitting explicit intermediate
+logical statements, we probably want to show the result we
+set out to prove, for clarity.  So, we can define another
+helper function like
+
+    function shows(proof, expr):
+        assert proof is_a ValidProof
+        assert proof.assumptions is empty
+        assert proof.statement == expr
+        return proof
+
+Then we can say
+
+    shows(
+        impl_intro(
+            3,
+            (... all the rest of the above proof ...)
+        ),
+        «(p → q) → ((q → r) → (p → r))»
+    )
+
+and if we run this program we should not get an error, it
+should just exit, indicating that the proof is indeed valid
+and that it is indeed a proof of this statement, with no
+outstanding assumptions.
+
+Note that the `shows` function could also be used on
+intermediate steps.
 
 _TO BE CONTINUED_
 

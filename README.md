@@ -289,6 +289,37 @@ outstanding assumptions.
 Note that the `shows` function could also be used on
 intermediate steps.
 
+But even if you used it on every intermediate step, this
+layout seems a bit awkward.  It corresponds with the tree
+proof in the article, but it's oriented sideways.
+
+Natural deduction proofs can also be written out linearly,
+as a list of steps.  We can do that with our big nest
+of function applications, by binding each application to
+a local name with a structure like `let`.  Like so:
+
+    let
+        s1 = suppose(«p», 1)
+        s2 = suppose(«p → q», 3)
+        s3 = impl_elim(s1, s2)
+        s4 = suppose(«q → r», 2)
+        s5 = impl_elim(s3, s4)
+        s6 = impl_intro(1, s5)
+        s7 = impl_intro(2, s6)
+        s8 = impl_intro(3, s7)
+    in
+        shows(s8, «(p → q) → ((q → r) → (p → r))»)
+
+That is immediately, in some ways, more readable.  It comes
+at the cost of having to introduce and manage all those
+intermediate names, though.  And we still need to manage
+the bookkeeping assumption labels.
+
+In a Fitch-style proof, the assumption labels are replaced
+by nested boxes.  We can probably do that here as well, but it
+seems to be a less good match with common language constructs,
+than `let` is for capturing the idea of proof steps.
+
 _TO BE CONTINUED_
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/

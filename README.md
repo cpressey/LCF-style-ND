@@ -104,50 +104,68 @@ Code for the Theorem Prover
 
 It would seem that the ideal language in which to demonstrate the
 things I'm trying to demonstrate here would be a dynamically-typed
-language with readable language constructs for encapsulation.
-Unfortunately, such languages are not common, and certainly not
-mainstream.  So to avoid the question of what programming language
-use, let's write this theorem prover in pseudo-code.
+language with good support for encapsulation.
 
-Assume we have the usual assortment of primitive types in the
-language, and some way to define records containing multiple
-values, and some way to hide the representation of these records
-from every part of the program, except inside the definition of
-our operations.
+Unfortunately, such a combination is rarely found in a
+programming language (which could be a topic unto itself).
+This leaves me a few options:
 
-The record we will use to represent a valid proof, the
-constructor for which we will denote with `ValidProof`,
-contains two elements:
+*   Write it in a dynamically-typed language like Python and ask
+    you to pretend there's actually encapsulation happening too.
+*   Write it in an encapsulation-supporting language like Java and
+    ask you to pretend the static types aren't actually happening
+*   (And in both these cases I would also have to ask you to ignore
+    the object-oriented bits, as they're just a distraction too.)
+*   Write it in a dynamically-typed language like Scheme but
+    [employ some contortions to achieve encapsulation][] and
+    ask you to not have them distract you from the main thrust.
+*   Write it in pseudo-code and ask you to kind of bear with me
+    and play along as I hoc up some some ad-hoc notation for it.
 
-*   the logical expression which is the proved statement
-*   a mapping from labels to logical expressions, which are
-    the assumptions that have been introduced.
+None of these options are fantastic.  I'll pick the first option,
+because Python is pretty accessible and it's pretty easy to
+pretend it has encapsulation (see also the proviso I mentioned
+earlier.)
 
-Logical expressions are themselves a record structure of
-some sort, with constructors according to its structure
-such as `Conj`, `Disj`, `Impl`, `Prop` and so forth.
-However, unlike `ValidProof`, the representation of these
+So, this code will deal with `ProofStep` objects with some
+attributes whose names begin with single underscore.  Just
+pretend that the operations I will describe are the _only_
+operations that can access these attributes.  All other
+operations are magically prevented from doing so.
+
+These attributes are:
+
+*   `_conclusion` -- a propositional sentence which
+    is the proved statement
+*   `_assumptions` -- a dict mapping labels to
+    propositional sentences, which are the assumptions
+    under which the `_conclusion` is proved true.
+
+Propositional sentences are an abstract syntax tree
+structure, whose nodes are objects from classes
+such as `Conj`, `Disj`, `Impl`, `Var` and so forth.
+Unlike our proof objects, the representation of these
 will not be hidden from client code.  In fact it will be
-useful for client code to manipulate logical expressions
-as much as it likes.
+useful for client code to manipulate propositional
+sentences as much as it likes.
 
-In addition, we will assume there is some kind of `Dict`
-structure which can contain a mapping from values to values.
+Now, on to the actual operations.
 
 The basic operation to produce a trivial valid proof takes
-a logical expression and a label and produces a proof with
-that expression as an assumption.  Something like:
+a propositional sentence and a label and produces a proof with
+that sentence as an assumption.  Something like:
 
-    function suppose(expr, label):
-        local assm := new Dict{}
-        assm[label] := expr
-        return new ValidProof{
-            statement: expr,
-            assumptions: assm
-        }
+    def suppose(prop, label):
+        return ProofStep(
+            _assumptions={ label: prop },
+            _conclusion=prop
+        )
 
 We will also have a set of operations that represent inference
-rules.  Inference rules such as conjunction-introduction seem
+rules.  Each inference rule is a function: the inputs are the
+premises and the output is the conclusion.
+
+Inference rules such as conjunction-introduction seem
 easy to formulate, and they are, but there is one aspect where
 we must take care, which is this: any assumptions attached to
 the premises must be carried over to the conclusion.
@@ -159,66 +177,76 @@ as such.
 To achieve these ends we would benefit from defining a helper
 function, something like:
 
-    function merge_assumptions(a, b):
-        local c := copy_of(b)
-        for each (key, value) in a:
+    def merge_assumptions(a, b):
+        c = b.copy()
+        for (key, value) in a.items():
             if key not in c:
-                c[key] := value
-            else if c[key] != value:
-                throw Error("Inconsistent labelling")
+                c[key] = value
+            elif c[key] != value:
+                raise Error("Inconsistent labelling")
         return c
 
 Now we can write the operation corresponding to the inference
 rule of conjunction-introduction:
 
-    function conj_intro(p, q):
-        assert p is_a ValidProof
-        assert q is_a ValidProof
-        return new ValidProof{
-            statement: new Conj(p.statement, q.statement),
-            assumptions: merge_assumptions(
-                p.assumptions, q.assumptions
+    def conj_intro(p, q):
+        assert isinstance(p, ProofStep)
+        assert isinstance(q, ProofStep)
+        return ProofStep(
+            _conclusion=Conj(p._conclusion, q._conclusion),
+            _assumptions=merge_assumptions(
+                p._assumptions, q._assumptions
             )
-        }
+        )
 
-We did conjunction-introduction first because it is very
-simple, but it is correspondingly not very exciting, and
-showing a proof using only it will probably not be very
+Conjunction-elimination is also reasonably simple.  We
+assert that the conclusion has a certain structure, and
+take it apart.  `side` is a parameter which tells which
+side we want to keep: 0 for left, 1 for right.
+
+    def conj_elim(p, side):
+        assert isinstance(p, ProofStep)
+        assert isinstance(p._conclusion, Conj)
+        return ProofStep(
+            _conclusion=p._conclusion.lhs if side == 0 else p._conclusion.rhs,
+            _assumptions=p._assumptions
+        )
+
+We did the rules for conjunctions first because they are very
+simple, but correspondingly not very exciting, and
+showing a proof using only them will probably not be very
 illuminating.  So, let's work towards having a selection
 of inference rules that will let us write a small, but
 meaningful, proof.  Here is implication-elimination, also
 known as _modus ponens_:
 
-    function impl_elim(p, q):
-        assert p is_a ValidProof
-        assert p.statement is_a Impl
-        assert p.statement.lhs == q
-        return new ValidProof{
-            statement: p.statement.rhs,
-            assumptions: merge_assumptions(
-                p.assumptions, q.assumptions
+    def impl_elim(p, q):
+        assert isinstance(p, ProofStep)
+        assert isinstance(q, ProofStep)
+        assert isinstance(q._conclusion, Impl)
+        assert q._conclusion.lhs == p._conclusion
+        return ProofStep(
+            _conclusion=q._conclusion.rhs,
+            _assumptions=merge_assumptions(
+                p._assumptions, q._assumptions
             )
-        }
+        )
 
-This is a little more complex than conjunction-introduction
-because we're examining the structure of one of the logical
-expressions we're given as input.
-
-Implication-introduction is more complex still, as it will
+Implication-introduction is slightly more complex, as it will
 *discharge* one of the assumptions it's given.  To identify
 this assumption, we will pass in its label.  An assumption
-with that label must be present on the ValidProof that we
+with that label must be present on the proof step that we
 also pass in.
 
-    function impl_intro(label, q):
-        assert q is_a ValidProof
-        assert label in q.assumptions
-        local assm := copy_of(q.assumptions)
-        local p := assm[label]
-        delete assm[label]
-        return new ValidProof{
-            statement: new Impl(p, q),
-            assumptions: assm
+    def impl_intro(label, q):
+        assert isinstance(q, ProofStep)
+        assert label in q._assumptions
+        a = q._assumptions.copy()
+        p = a[label]
+        delete a[label]
+        return ProofStep(
+            _conclusion=Impl(p, q._conclusion),
+            _assumptions=a
         )
 
 We now have enough operations to demonstrate a simple proof.
@@ -229,22 +257,25 @@ of the IEP article:
 
 Our function application that corresponds to that proof is
 
-    impl_intro(
-        3,
-        impl_intro(
-            2,
+    def proof1a():
+        return (
             impl_intro(
-                1,
-                impl_elim(
-                    impl_elim(
-                        suppose(«p», 1),
-                        suppose(«p → q», 3)
-                    ),
-                    suppose(«q → r», 2)
+                3,
+                impl_intro(
+                    2,
+                    impl_intro(
+                        1,
+                        impl_elim(
+                            impl_elim(
+                                suppose(«p», 1),
+                                suppose(«p → q», 3)
+                            ),
+                            suppose(«q → r», 2)
+                        )
+                    )
                 )
             )
         )
-    )
 
 The guillemet-quoted strings are just intended to be a convenient
 way to write a logical expression (instead of something like
@@ -265,24 +296,25 @@ logical statements, we probably want to show the result we
 set out to prove, for clarity.  So, we can define another
 helper function like
 
-    function shows(proof, expr):
-        assert proof is_a ValidProof
-        assert proof.assumptions is empty
-        assert proof.statement == expr
-        return proof
+    def shows(p, conclusion):
+        assert isinstance(p, ProofStep)
+        assert len(p._assumptions) == 0
+        assert p._conclusion == conclusion
+        return p
 
 Then we can say
 
-    shows(
-        impl_intro(
-            3,
-            (... all the rest of the above proof ...)
-        ),
-        «(p → q) → ((q → r) → (p → r))»
-    )
+    def proof1b():
+        return shows(
+            impl_intro(
+                3,
+                (... all the rest of the above proof ...)
+            ),
+            «(p → q) → ((q → r) → (p → r))»
+        )
 
-and if we run this program we should not get an error, it
-should just exit, indicating that the proof is indeed valid
+and if we call this function we should not get an error; it
+should just return, indicating that the proof is indeed valid
 and that it is indeed a proof of this statement, with no
 outstanding assumptions.
 
@@ -296,9 +328,9 @@ proof in the article, but it's oriented sideways.
 Natural deduction proofs can also be written out linearly,
 as a list of steps.  We can do that with our big nest
 of function applications, by binding each application to
-a local name with a structure like `let`.  Like so:
+a local name.  Like so:
 
-    let
+    def proof1c():
         s1 = suppose(«p», 1)
         s2 = suppose(«p → q», 3)
         s3 = impl_elim(s1, s2)
@@ -307,8 +339,7 @@ a local name with a structure like `let`.  Like so:
         s6 = impl_intro(1, s5)
         s7 = impl_intro(2, s6)
         s8 = impl_intro(3, s7)
-    in
-        shows(s8, «(p → q) → ((q → r) → (p → r))»)
+        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
 
 That is immediately, in some ways, more readable.  It comes
 at the cost of having to introduce and manage all those
@@ -317,12 +348,14 @@ the bookkeeping assumption labels.
 
 In a Fitch-style proof, the assumption labels are replaced
 by nested boxes.  We can probably do that here as well, but it
-seems to be a less good match with common language constructs,
-than `let` is for capturing the idea of proof steps.
+will probably be a poor match with Python's language
+constructs.  We may need to introduce some pseudo-code to
+explain how it relates to lexical scope.
 
 _TO BE CONTINUED_
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/
 [Parse, don't Validate]: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 [Information Hiding in Scheme]: https://github.com/cpressey/Information-Hiding-in-Scheme
+[employ some contortions to achieve encapsulation]: https://github.com/cpressey/Information-Hiding-in-Scheme
 [The LCF Approach to Theorem Proving]: https://www.cl.cam.ac.uk/~jrh13/slides/manchester-12sep01/slides.pdf

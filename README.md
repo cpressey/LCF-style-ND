@@ -7,13 +7,14 @@ in a Natural Deduction setting.
 
 First it contains some brief notes and some (I think) interesting
 observations about LCF-style theorem provers and Natural Deduction.
-Then it proceeds to tie them together with some code.
+Then it proceeds to tie them together with some Python-like
+pseudo-code.
 
 Contents:
 
 *   [LCF-style Theorem Proving](#lcf-style-theorem-proving)
 *   [Natural Deduction](#natural-deduction)
-*   [Code for the Theorem Prover](#code-for-the-theorem-prover) (WIP)
+*   [Pseudo-Code for the Theorem Prover](#pseudo-code-for-the-theorem-prover)
 
 LCF-style Theorem Proving
 -------------------------
@@ -99,8 +100,8 @@ This seems akin to labelled assumptions having _dynamic scope_
 versus nested assumptions having _lexical scope_.  Our theorem prover
 will use labels for simplicity.
 
-Code for the Theorem Prover
----------------------------
+Pseudo-Code for the Theorem Prover
+----------------------------------
 
 It would seem that the ideal language in which to demonstrate the
 things I'm trying to demonstrate here would be a dynamically-typed
@@ -190,6 +191,7 @@ Now we can write the operation corresponding to the inference
 rule of conjunction-introduction:
 
     def conj_intro(p, q):
+        """If p is proved, and q is proved, the p & q is proved."""
         assert isinstance(p, ProofStep)
         assert isinstance(q, ProofStep)
         return ProofStep(
@@ -205,6 +207,7 @@ take it apart.  `side` is a parameter which tells which
 side we want to keep: 0 for left, 1 for right.
 
     def conj_elim(p, side):
+        """If p & q is proved, then p (alternately q) is proved."""
         assert isinstance(p, ProofStep)
         assert isinstance(p._conclusion, Conj)
         return ProofStep(
@@ -221,6 +224,7 @@ meaningful, proof.  Here is implication-elimination, also
 known as _modus ponens_:
 
     def impl_elim(p, q):
+        """If p is proved, and p -> q is proved, then q is proved."""
         assert isinstance(p, ProofStep)
         assert isinstance(q, ProofStep)
         assert isinstance(q._conclusion, Impl)
@@ -239,13 +243,14 @@ with that label must be present on the proof step that we
 also pass in.
 
     def impl_intro(label, q):
+        """If q is proved under the assumption p, then p -> q is proved."""
         assert isinstance(q, ProofStep)
         assert label in q._assumptions
         a = q._assumptions.copy()
-        p = a[label]
+        prop = a[label]
         delete a[label]
         return ProofStep(
-            _conclusion=Impl(p, q._conclusion),
+            _conclusion=Impl(prop, q._conclusion),
             _assumptions=a
         )
 
@@ -280,6 +285,10 @@ Our function application that corresponds to that proof is
 The guillemet-quoted strings are just intended to be a convenient
 way to write a logical expression (instead of something like
 `Impl(Prop("p"), Prop("q")))` which would be much clumsier).
+
+(And note well that `proof1a` is *not* an operation and may
+*not* directly access or manipulate the `_conclusion`
+and `_assumptions` fields of the object it creates and returns.)
 
 The formatting of this function application is intentionally
 very tree-like, to try to make it clearer how it corresponds
@@ -330,7 +339,7 @@ as a list of steps.  We can do that with our big nest
 of function applications, by binding each application to
 a local name.  Like so:
 
-    def proof1c():
+    def proof1c1():
         s1 = suppose(«p», 1)
         s2 = suppose(«p → q», 3)
         s3 = impl_elim(s1, s2)
@@ -347,12 +356,69 @@ intermediate names, though.  And we still need to manage
 the bookkeeping assumption labels.
 
 In a Fitch-style proof, the assumption labels are replaced
-by nested boxes.  We can probably do that here as well, but it
-will probably be a poor match with Python's language
-constructs.  We may need to introduce some pseudo-code to
-explain how it relates to lexical scope.
+by nested boxes.  The proof steps outside the boxes cannot
+make reference directly to the proof steps inside the boxes.
+This suggests the proof steps in the boxes are in
+an _inner scope_.
 
-_TO BE CONTINUED_
+First let's re-arrange the proof steps to show that they
+can indeed nest.
+
+    def proof1c2():
+        s1 = suppose(«p → q», 3)
+        s2 = suppose(«q → r», 2)
+        s3 = suppose(«p», 1)
+        s4 = impl_elim(s3, s1)
+        s5 = impl_elim(s4, s2)
+        s6 = impl_intro(1, s5)
+        s7 = impl_intro(2, s6)
+        s8 = impl_intro(3, s7)
+        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+
+Now pretend we've rewritten `suppose` to be a context
+manager.  Instead of taking a label as an argument, `suppose`
+now generates its own unique label and pushes it onto a
+stack.  And now, also instead of taking a label as an
+argument, `impl_intro` pops the label off that stack.
+This lets us write:
+
+    def proof1c3():
+        with suppose(«p → q») as s1:
+            with suppose(«q → r») as s2:
+                with suppose(«p») as s3:
+                    s4 = impl_elim(s3, s1)
+                    s5 = impl_elim(s4, s2)
+                    s6 = impl_intro(s5)
+                s7 = impl_intro(s6)
+            s8 = impl_intro(s7)
+        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+
+...which matches pretty closely with a Fitch-style exposition.
+It's still lacking a few things; mainly, the lines after a
+`with` block shouldn't be able to see the local variables
+defined within it; they should only be able to refer to the
+final line.  We'll have to prevent they are magically prevented
+from referring to any of the other lines.  A more thorough
+way to do this might be to use multiple function definitions,
+although that will probably begin to look a bit less Fitch-like.
+
+    def proof1c4():
+        def inner1((s1, lab1)):
+            def inner2((s2, lab2):
+                def inner3((s3, lab3)):
+                    s4 = impl_elim(s3, s1)
+                    s5 = impl_elim(s4, s2)
+                    return impl_intro(s5, lab3)
+                s6 = inner3(suppose(«p»))
+                return impl_intro(s6, lab2)
+            s7 = inner2(suppose(«q → r»))
+            return impl_intro(s7, lab1)
+        s8 = inner1(suppose(«p → q»))
+        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+
+Yeah, that looks a bit less Fitch-like.
+
+_(TO BE CONTINUED)_
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/
 [Parse, don't Validate]: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/

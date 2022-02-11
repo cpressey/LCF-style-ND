@@ -191,7 +191,7 @@ Now we can write the operation corresponding to the inference
 rule of conjunction-introduction:
 
     def conj_intro(p, q):
-        """If p is proved, and q is proved, the p & q is proved."""
+        """If p is proved, and q is proved, then p & q is proved."""
         assert isinstance(p, ProofStep)
         assert isinstance(q, ProofStep)
         return ProofStep(
@@ -201,18 +201,24 @@ rule of conjunction-introduction:
             )
         )
 
+(Note that, even though we're using plain old Latin letters, rather
+than Greek ones, for variable names in these functions, these
+variables do represent proof steps, and not particular propositional
+variables that appear in the propositional statements themselves.
+Those would be represented by `Var("p")` or similar.)
+
 Conjunction-elimination is also reasonably simple.  We
 assert that the conclusion has a certain structure, and
 take it apart.  `side` is a parameter which tells which
 side we want to keep: 0 for left, 1 for right.
 
-    def conj_elim(p, side):
-        """If p & q is proved, then p (alternately q) is proved."""
-        assert isinstance(p, ProofStep)
-        assert isinstance(p._conclusion, Conj)
+    def conj_elim(r, side):
+        """If r (of the form p & q) is proved, then p (alternately q) is proved."""
+        assert isinstance(r, ProofStep)
+        assert isinstance(r._conclusion, Conj)
         return ProofStep(
-            _conclusion=p._conclusion.lhs if side == 0 else p._conclusion.rhs,
-            _assumptions=p._assumptions
+            _conclusion=r._conclusion.lhs if side == 0 else r._conclusion.rhs,
+            _assumptions=r._assumptions
         )
 
 We did the rules for conjunctions first because they are very
@@ -223,16 +229,16 @@ of inference rules that will let us write a small, but
 meaningful, proof.  Here is implication-elimination, also
 known as _modus ponens_:
 
-    def impl_elim(p, q):
-        """If p is proved, and p -> q is proved, then q is proved."""
+    def impl_elim(p, r):
+        """If p is proved, and r (of the form p → q) is proved, then q is proved."""
         assert isinstance(p, ProofStep)
-        assert isinstance(q, ProofStep)
-        assert isinstance(q._conclusion, Impl)
-        assert q._conclusion.lhs == p._conclusion
+        assert isinstance(r, ProofStep)
+        assert isinstance(r._conclusion, Impl)
+        assert r._conclusion.lhs == p._conclusion
         return ProofStep(
-            _conclusion=q._conclusion.rhs,
+            _conclusion=r._conclusion.rhs,
             _assumptions=merge_assumptions(
-                p._assumptions, q._assumptions
+                p._assumptions, r._assumptions
             )
         )
 
@@ -243,7 +249,7 @@ with that label must be present on the proof step that we
 also pass in.
 
     def impl_intro(label, q):
-        """If q is proved under the assumption p, then p -> q is proved."""
+        """If q is proved under the assumption p, then p → q is proved."""
         assert isinstance(q, ProofStep)
         assert label in q._assumptions
         a = q._assumptions.copy()
@@ -416,7 +422,80 @@ although that will probably begin to look a bit less Fitch-like.
         s8 = inner1(suppose(«p → q»))
         return shows(s8, «(p → q) → ((q → r) → (p → r))»)
 
-Yeah, that looks a bit less Fitch-like.
+Yeah, that looks a bit less Fitch-like... but you can probably
+imagine an alternate syntax for that, that is more properly
+Fitch-like.  It would be merely syntactic sugar, so I won't
+dwell on it.
+
+Now, to go back to the inference rules.  We haven't given
+a full set, but I think we've given enough to get the idea
+across.  I could say the rest are left as an exercise for
+the reader.  But, one in particular is perhaps still worth
+doing, and that's disjunction-elimination, and the reason
+it's perhaps worth doing, is because it's complex.  If you
+can translate it into a function, you can probably translate
+any inference rule into a function.
+
+Pictorially, disjunction-elimination is usually shown as
+something like
+
+                        φ   ψ
+                        :   :
+                        :   :
+                φ ∨ ψ   χ   χ
+            -------------------- ∨e
+                      χ
+
+In prose, we can read this as "If φ ∨ ψ is proved, and if
+we can prove χ under the assumption φ, and we can prove
+χ under the assumption ψ, then χ is proved."
+
+From this, we know we need to take a proof step (call it
+`r`) and assert that is a certain form (`Disj`); and we
+will need to take another proof step, and a label (call
+them `s` and `l1`); and yet another proof step and a label
+(call them `t` and `l2`).
+
+At the labels we will locate `p` and `q` and assert that
+those are what `r` breaks up into.
+
+We will assert that `s` and `t` also represent the same
+conclusion, and that is what we will return.  We will
+discharge the assumptions `p` and `q`, but we will also
+need to carry forward any undischarged assumptions that
+may still be in `r`, `s`, and `t`.
+
+Which means the function must look like this:
+
+    def disj_elim(r, s, l1, t, l2):
+        assert isinstance(r, ProofStep)
+        assert isinstance(r._conclusion, Disj)
+
+        assert isinstance(s, ProofStep)
+        assert l1 in s._assumptions
+        a_s = s._assumptions.copy()
+        p1 = a_s[l1]
+        delete a_s[l1]
+
+        assert isinstance(t, ProofStep)
+        assert l2 in t._assumptions
+        a_t = t._assumptions.copy()
+        q1 = a_t[l1]
+        delete a_t[l1]
+
+        assert s == t
+        assert r._conclusion.lhs == p
+        assert r._conclusion.rhs == q
+
+        return ProofStep(
+            _conclusion=s,
+            _assumptions=merge_assumptions(
+                r._assumptions,
+                merge_assumptions(a_s, a_t)
+            )
+        )
+
+Whew!
 
 _(TO BE CONTINUED)_
 

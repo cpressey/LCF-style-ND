@@ -10,6 +10,9 @@ observations about LCF-style theorem provers and Natural Deduction.
 Then it proceeds to tie them together with some Python-like
 pseudo-code.
 
+Implementation of this code in a real programming language is
+forthcoming.
+
 Contents:
 
 *   [LCF-style Theorem Proving](#lcf-style-theorem-proving)
@@ -25,7 +28,10 @@ slides for a presentation by John Harrison of Intel Corp. in 2001.
 
 An LCF-style theorem prover, as far as I'm concerned, means this:
 
-You have a data type representing valid proofs.
+You have a programming language, and you will write your proofs
+directly in this language, as executable programs.
+
+To do this, you have a data type representing valid proofs.
 
 You have some operations that produce trivial valid proofs.
 
@@ -34,7 +40,8 @@ transform them to produce new valid proofs.
 
 You don't provide any other way to produce or mutate such
 a data object.  In this way, these data objects are guaranteed
-to represent valid proofs.
+to represent valid proofs, and a program that runs and produces
+such a data object as its output, has proved a theorem.
 
 ### Some Observations
 
@@ -66,7 +73,7 @@ Natural Deduction
 [The IEP article on Natural Deduction][]
 is a good overview, and I'll follow parts of it closely here.
 
-In particular, it proposes some criteria to distinguish Natural
+In particular, it proposes some criteria for distinguishing Natural
 Deduction proof systems from other proof systems.  In ND systems,
 
 (1) Assumptions can be freely introduced, and subsequently
@@ -80,8 +87,8 @@ rules.
 The first corresponds to LCF-style operations which produce trivial
 valid proofs.  The second corresponds to LCF-style operations which
 transform valid proofs into other valid proofs.  The third
-corresponds to the fact that the data type representing valid
-proofs is embedded in a general-purpose programming language, in
+corresponds to the fact that the data objects representing valid
+proofs are processed by a general-purpose programming language, in
 which we can build arbitrary contrivances to help us work with them.
 
 ### Some Observations
@@ -96,9 +103,10 @@ earlier proof steps.
 In the tree format, assumptions are labelled when introduced, so
 that when an assumption is discharged, we know which one it is.
 In the list format, nested boxes can be used to serve the same purpose.
-This seems akin to labelled assumptions having _dynamic scope_
-versus nested assumptions having _lexical scope_.  Our theorem prover
-will use labels for simplicity.
+This is akin to labelled assumptions having _dynamic scope_
+versus nested assumptions having _lexical scope_, which will be
+demonstrated in one of the sections below.  To simplify the exposition,
+our theorem prover will use labelled assumptions.
 
 Pseudo-Code for the Theorem Prover
 ----------------------------------
@@ -111,44 +119,49 @@ Unfortunately, such a combination is rarely found in a
 programming language (which could be a topic unto itself).
 This leaves me a few options:
 
-*   Write it in a dynamically-typed language like Python and ask
-    you to pretend there's actually encapsulation happening too.
-*   Write it in an encapsulation-supporting language like Java and
-    ask you to pretend the static types aren't actually happening
-*   (And in both these cases I would also have to ask you to ignore
-    the object-oriented bits, as they're just a distraction too.)
-*   Write it in a dynamically-typed language like Scheme but
+*   Write it in a dynamically-typed language (like Python or Scheme)
+    and ask you to pretend there's actually encapsulation happening;
+*   Write it in an encapsulation-supporting language (like C or
+    Modula-2) and ask you to pretend the static types aren't actually
+    happening;
+*   Write it in a dynamically-typed language but
     [employ some contortions to achieve encapsulation][] and
-    ask you to not have them distract you from the main thrust.
+    ask you to ignore them, and hope that they do not distract you;
+*   Write it in an object-oriented language with encapsulation, and
+    ask you to ignore the types _and_ the object-oriented bits, as
+    they are both distractions;
 *   Write it in pseudo-code and ask you to kind of bear with me
     and play along as I hoc up some some ad-hoc notation for it.
 
 None of these options are fantastic.  I'll pick the first option,
 because Python is pretty accessible and it's pretty easy to
-pretend it has encapsulation (see also the proviso I mentioned
+pretend it has encapsulation.  (See also the proviso I mentioned
 earlier.)
 
-So, this code will deal with `ProofStep` objects with some
+So, this code will deal with `Proof` objects with some
 attributes whose names begin with single underscore.  Just
-pretend that the operations I will describe are the _only_
+pretend that the operations described here are the _only_
 operations that can access these attributes.  All other
 operations are magically prevented from doing so.
 
 These attributes are:
 
-*   `_conclusion` -- a propositional sentence which
+*   `_conclusion` -- a propositional formula which
     is the proved statement
 *   `_assumptions` -- a dict mapping labels to
-    propositional sentences, which are the assumptions
+    propositional formulas, which are the assumptions
     under which the `_conclusion` is proved true.
 
-Propositional sentences are an abstract syntax tree
-structure, whose nodes are objects from classes
-such as `Conj`, `Disj`, `Impl`, `Var` and so forth.
-Unlike our proof objects, the representation of these
-will not be hidden from client code.  In fact it will be
-useful for client code to manipulate propositional
-sentences as much as it likes.
+Propositional formulas are represented with an abstract syntax
+tree structure, whose nodes are objects from classes
+such as `Conj`, `Disj`, `Impl`, `Var` and so forth.  When
+these are binary operators we assume they have attributes
+called `lhs` and `rhs` containing their child nodes.
+
+Unlike our proof objects, the representation of propositional
+formulas will not be hidden from client code.  In fact it
+will be useful for client code to manipulate propositional
+formulas as much as it likes.
 
 Now, on to the actual operations.
 
@@ -157,8 +170,8 @@ a propositional sentence and a label and produces a proof with
 that sentence as an assumption.  Something like:
 
     def suppose(prop, label):
-        return ProofStep(
-            _assumptions={ label: prop },
+        return Proof(
+            _assumptions={label: prop},
             _conclusion=prop
         )
 
@@ -168,11 +181,13 @@ premises and the output is the conclusion.
 
 Inference rules such as conjunction-introduction seem
 easy to formulate, and they are, but there is one aspect where
-we must take care, which is this: any assumptions attached to
-the premises must be carried over to the conclusion.
+we must take care, which is this: any assumptions already made
+in the premises must be carried over and preserved in the
+conclusion.
 
-Additionally, any label that refers to two different logical
-expressions must be some kind of mistake, and should be flagged
+Additionally, discovering two copies of the same label refer
+to two different propositional formulas indicates some kind
+of mistake in the proof construction, and should be flagged
 as such.
 
 To achieve these ends we would benefit from defining a helper
@@ -192,38 +207,40 @@ rule of conjunction-introduction:
 
     def conj_intro(p, q):
         """If p is proved, and q is proved, then p & q is proved."""
-        assert isinstance(p, ProofStep)
-        assert isinstance(q, ProofStep)
-        return ProofStep(
+        assert isinstance(p, Proof)
+        assert isinstance(q, Proof)
+        return Proof(
             _conclusion=Conj(p._conclusion, q._conclusion),
             _assumptions=merge_assumptions(
                 p._assumptions, q._assumptions
             )
         )
 
-(Note that, even though we're using plain old Latin letters, rather
-than Greek ones, for variable names in these functions, these
-variables do represent proof steps, and not particular propositional
+Note that, when writing an inference rule in natural deduction,
+we would typically notate variables which take on proofs with
+Greek letters.  Instead of doing that in this code, we are
+using Latin letters, in this case `p` and `q`.  (Note that these
+variables do represent proofs, and not particular propositional
 variables that appear in the propositional statements themselves.
 Those would be represented by `Var("p")` or similar.)
 
 Conjunction-elimination is also reasonably simple.  We
-assert that the conclusion has a certain structure, and
+assert that the conclusion has a certain structure, and then we
 take it apart.  `side` is a parameter which tells which
-side we want to keep: 0 for left, 1 for right.
+side we want to keep: `'L'` for left, `'R'` for right.
 
     def conj_elim(r, side):
         """If r (of the form p & q) is proved, then p (alternately q) is proved."""
-        assert isinstance(r, ProofStep)
+        assert isinstance(r, Proof)
         assert isinstance(r._conclusion, Conj)
-        return ProofStep(
-            _conclusion=r._conclusion.lhs if side == 0 else r._conclusion.rhs,
+        return Proof(
+            _conclusion={'L': r._conclusion.lhs, 'R': r._conclusion.rhs}[side],
             _assumptions=r._assumptions
         )
 
 We did the rules for conjunctions first because they are very
 simple, but correspondingly not very exciting, and
-showing a proof using only them will probably not be very
+showing a proof using only them would probably not be very
 illuminating.  So, let's work towards having a selection
 of inference rules that will let us write a small, but
 meaningful, proof.  Here is implication-elimination, also
@@ -231,11 +248,11 @@ known as _modus ponens_:
 
     def impl_elim(p, r):
         """If p is proved, and r (of the form p → q) is proved, then q is proved."""
-        assert isinstance(p, ProofStep)
-        assert isinstance(r, ProofStep)
+        assert isinstance(p, Proof)
+        assert isinstance(r, Proof)
         assert isinstance(r._conclusion, Impl)
         assert r._conclusion.lhs == p._conclusion
-        return ProofStep(
+        return Proof(
             _conclusion=r._conclusion.rhs,
             _assumptions=merge_assumptions(
                 p._assumptions, r._assumptions
@@ -250,12 +267,12 @@ also pass in.
 
     def impl_intro(label, q):
         """If q is proved under the assumption p, then p → q is proved."""
-        assert isinstance(q, ProofStep)
+        assert isinstance(q, Proof)
         assert label in q._assumptions
         a = q._assumptions.copy()
         prop = a[label]
         delete a[label]
-        return ProofStep(
+        return Proof(
             _conclusion=Impl(prop, q._conclusion),
             _assumptions=a
         )
@@ -300,19 +317,19 @@ The formatting of this function application is intentionally
 very tree-like, to try to make it clearer how it corresponds
 with the tree presentation of the proof in the IEP article.
 
-The glaring difference is, of course, that the nodes of the
-tree in the proper tree-structured proof show the sentence of
-the valid proof at each step, while in the function application,
-that valid proof is merely being passed as a parameter to the
+The glaring difference between this and a tree-structured proof
+is, of course, that the nodes of the tree-structured proof show
+the conclusion at each step, while in the function application,
+the valid proof is merely being passed as a parameter to the
 enclosing function, and not shown in the source code.
 
-Even if we were alright with omitting explicit intermediate
-logical statements, we probably want to show the result we
-set out to prove, for clarity.  So, we can define another
-helper function like
+Even if we found it acceptable to omit those explicit intermediate
+conclusions, we probably would still want to show the final
+conclusion that we set out to prove, for clarity.  So, we can
+define another helper function like
 
     def shows(p, conclusion):
-        assert isinstance(p, ProofStep)
+        assert isinstance(p, Proof)
         assert len(p._assumptions) == 0
         assert p._conclusion == conclusion
         return p
@@ -334,7 +351,7 @@ and that it is indeed a proof of this statement, with no
 outstanding assumptions.
 
 Note that the `shows` function could also be used on
-intermediate steps.
+intermediate steps, if desired.
 
 But even if you used it on every intermediate step, this
 layout seems a bit awkward.  It corresponds with the tree
@@ -356,16 +373,16 @@ a local name.  Like so:
         s8 = impl_intro(3, s7)
         return shows(s8, «(p → q) → ((q → r) → (p → r))»)
 
-That is immediately, in some ways, more readable.  It comes
-at the cost of having to introduce and manage all those
+This layout is immediately, in some ways, more readable.  It
+comes at the cost of having to introduce and manage all those
 intermediate names, though.  And we still need to manage
-the bookkeeping assumption labels.
+the bookkeeping of the assumption labels.
 
 In a Fitch-style proof, the assumption labels are replaced
 by nested boxes.  The proof steps outside the boxes cannot
 make reference directly to the proof steps inside the boxes.
 This suggests the proof steps in the boxes are in
-an _inner scope_.
+an _inner lexical scope_.
 
 First let's re-arrange the proof steps to show that they
 can indeed nest.
@@ -381,7 +398,7 @@ can indeed nest.
         s8 = impl_intro(3, s7)
         return shows(s8, «(p → q) → ((q → r) → (p → r))»)
 
-Now pretend we've rewritten `suppose` to be a context
+Now let's pretend we've rewritten `suppose` to be a context
 manager.  Instead of taking a label as an argument, `suppose`
 now generates its own unique label and pushes it onto a
 stack.  And now, also instead of taking a label as an
@@ -403,10 +420,11 @@ This lets us write:
 It's still lacking a few things; mainly, the lines after a
 `with` block shouldn't be able to see the local variables
 defined within it; they should only be able to refer to the
-final line.  We'll have to prevent they are magically prevented
-from referring to any of the other lines.  A more thorough
-way to do this might be to use multiple function definitions,
-although that will probably begin to look a bit less Fitch-like.
+final line.  We'll have to pretend they are magically prevented
+from referring to any of the other lines.
+
+A more thorough way to do this would be to use local function
+definitions, although it does begin to look a bit less Fitch-like:
 
     def proof1c4():
         def inner1((s1, lab1)):
@@ -422,10 +440,9 @@ although that will probably begin to look a bit less Fitch-like.
         s8 = inner1(suppose(«p → q»))
         return shows(s8, «(p → q) → ((q → r) → (p → r))»)
 
-Yeah, that looks a bit less Fitch-like... but you can probably
-imagine an alternate syntax for that, that is more properly
-Fitch-like.  It would be merely syntactic sugar, so I won't
-dwell on it.
+You can, however, probably imagine an alternate syntax for this
+that is more properly Fitch-like.  It would be simply an exercise
+in syntactic sugar, so I won't dwell on it.
 
 Now, to go back to the inference rules.  We haven't given
 a full set, but I think we've given enough to get the idea
@@ -450,10 +467,10 @@ In prose, we can read this as "If φ ∨ ψ is proved, and if
 we can prove χ under the assumption φ, and we can prove
 χ under the assumption ψ, then χ is proved."
 
-From this, we know we need to take a proof step (call it
-`r`) and assert that is a certain form (`Disj`); and we
-will need to take another proof step, and a label (call
-them `s` and `l1`); and yet another proof step and a label
+From this, we know we need to take a proof (call it `r`)
+and assert that its conclusion has a certain form (`Disj`);
+and we will need to take another proof, and a label (call
+them `s` and `l1`); and yet another proof and a label
 (call them `t` and `l2`).
 
 At the labels we will locate `p` and `q` and assert that
@@ -468,16 +485,16 @@ may still be in `r`, `s`, and `t`.
 Which means the function must look like this:
 
     def disj_elim(r, s, l1, t, l2):
-        assert isinstance(r, ProofStep)
+        assert isinstance(r, Proof)
         assert isinstance(r._conclusion, Disj)
 
-        assert isinstance(s, ProofStep)
+        assert isinstance(s, Proof)
         assert l1 in s._assumptions
         a_s = s._assumptions.copy()
         p1 = a_s[l1]
         delete a_s[l1]
 
-        assert isinstance(t, ProofStep)
+        assert isinstance(t, Proof)
         assert l2 in t._assumptions
         a_t = t._assumptions.copy()
         q1 = a_t[l1]
@@ -487,7 +504,7 @@ Which means the function must look like this:
         assert r._conclusion.lhs == p
         assert r._conclusion.rhs == q
 
-        return ProofStep(
+        return Proof(
             _conclusion=s,
             _assumptions=merge_assumptions(
                 r._assumptions,

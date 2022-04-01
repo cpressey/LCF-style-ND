@@ -3,15 +3,16 @@ LCF-Style-ND
 
 This repository shows the development, in readable pseudo-code,
 of a simple LCF-style theorem prover for propositional logic
-in a Natural Deduction setting.
+in a Natural Deduction system.
 
 First it contains some brief notes and some (I think) interesting
 observations about LCF-style theorem provers and Natural Deduction.
 Then it proceeds to tie them together with some Python-like
-pseudo-code.
+pseudo-code.  And concludes with a couple more interesting notes.
 
-Implementation of this code in a real programming language is
-forthcoming.
+Implementations in real programming languages of the ideas presented
+here can be found in projects external to this repository, such as
+[**philomath**](https://github.com/catseye/philomath) (in ANSI C).
 
 Contents:
 
@@ -500,12 +501,12 @@ Which means the function must look like this:
         q1 = a_t[l1]
         delete a_t[l1]
 
-        assert s == t
+        assert s._conclusion == t._conclusion
         assert r._conclusion.lhs == p
         assert r._conclusion.rhs == q
 
         return Proof(
-            _conclusion=s,
+            _conclusion=s._conclusion,
             _assumptions=merge_assumptions(
                 r._assumptions,
                 merge_assumptions(a_s, a_t)

@@ -515,10 +515,61 @@ Which means the function must look like this:
 
 Whew!
 
-_(TO BE CONTINUED)_
+### Conclusion
+
+We'll conclude with a couple of more observations, ones which
+suggest avenues for future work.
+
+The first is that, while you can certainly build a proof with
+these functions, you have to actually _run_ the constructed
+program to check if the proof is valid.  And confirming that
+the proof is valid is _all_ the program does.  And as
+computational tasks go, that's really not a very complex one --
+there aren't any loops, or even any conditionals, in these
+inference rules we've written.
+
+So you might (very reasonably) wonder if the proof can be checked
+without going all the way to executing the program.  You might
+(very reasonably) think that you could apply concepts from static
+analysis, such as constant folding and abstract interpretation,
+to statically analyze the steps, and obtain the confirmation of
+validity of the proof at compile-time rather than runtime.
+
+Similarly, you might think of writing it as a macro -- another
+compile-time thing.
+
+Having not tried it, I cannot say exactly how it does end up,
+but I would be surprised if the result isn't parallel in some
+way to "propositions as types", since the compile-time-computable
+component can arguably be viewed as a type system.
+
+I would guess the resulting system would be fairly trivial for
+propositional logic, but would start to resemble dependent types
+(which is what is more conventionally used for theorem provers)
+if one were to upgrade to first-order logic.
+
+The other observation is that our program which expresses and
+checks a proof has a simple structure: a tree of function
+applications.  There is a straightforward way of "refactoring"
+such a program into a data structure: [defunctionalization][].
+
+In this way, the proof could be expressed as "plain old data"
+(think JSON) and "interpreted" by the program.  In this case,
+the programming language needn't support information hiding;
+the program is prevented from producing an incorrect proof
+object by virtue of the fact that the "interpreter" is closed,
+and does not allow any external code (i.e. code that could
+potentially modify the proof object in process in invalid ways)
+to be executed before the proof checking process terminates.
+
+It would admittedly be a stretch to call the resulting
+theorem prover "LCF-style" though, as it would no longer be
+possible to write arbitrary proof-manipulating code (e.g.
+tactics) in the host language.
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/
 [Parse, don't Validate]: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 [Information Hiding in Scheme]: https://github.com/cpressey/Information-Hiding-in-Scheme
 [employ some contortions to achieve encapsulation]: https://github.com/cpressey/Information-Hiding-in-Scheme
 [The LCF Approach to Theorem Proving]: https://www.cl.cam.ac.uk/~jrh13/slides/manchester-12sep01/slides.pdf
+[defunctionalization]: https://en.wikipedia.org/wiki/Defunctionalization

@@ -1,20 +1,26 @@
 LCF-Style-ND
 ============
 
-This repository shows the development, in readable pseudo-code,
+_See also:_ [Philomath](https://github.com/catseye/Philomath#readme)
+∘ [Destructorizers](https://github.com/cpressey/Destructorizers#readme)
+∘ [Nested Modal Transducers](https://github.com/cpressey/Nested-Modal-Transducers#readme)
+
+- - - -
+
+This repository houses an article that tries to show the development
 of a simple LCF-style theorem prover for propositional logic
 in a Natural Deduction system.
 
 First it contains some brief notes and some (I think) interesting
 observations about LCF-style theorem provers and Natural Deduction.
-Then it proceeds to tie them together with some Python-like
-pseudo-code.  And concludes with a couple more interesting notes.
+It then proceeds to tie them together with some Python-like
+pseudo-code, and concludes with a handful of further interesting observations.
 
-Implementations in real programming languages of the ideas presented
-here can be found in projects external to this repository, such as
-[**philomath**](https://github.com/catseye/philomath) (in ANSI C).
+This repository contains only pseudo-code; for implementations of these
+ideas in real programming languages, look at projects hosted in other repositories,
+such as [**Philomath**](https://github.com/catseye/philomath) (in ANSI C).
 
-Contents:
+### Table of Contents
 
 *   [LCF-style Theorem Proving](#lcf-style-theorem-proving)
 *   [Natural Deduction](#natural-deduction)

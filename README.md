@@ -176,6 +176,11 @@ formulas will not be hidden from client code.  In fact it
 will be useful for client code to manipulate propositional
 formulas as much as it likes.
 
+In particular, in order to avoid writing clumsy
+formula-tree-building code like `Impl(Var("p"), Var("q")))`,
+assume we have a helper function `wff` which parses strings
+containing propositional formulas, like so: `wff("p → q")`.
+
 Now, on to the actual operations.
 
 The basic operation to produce a trivial valid proof takes
@@ -308,21 +313,17 @@ Our function application that corresponds to that proof is
                         1,
                         impl_elim(
                             impl_elim(
-                                suppose(«p», 1),
-                                suppose(«p → q», 3)
+                                suppose(wff("p"), 1),
+                                suppose(wff("p → q"), 3)
                             ),
-                            suppose(«q → r», 2)
+                            suppose(wff("q → r"), 2)
                         )
                     )
                 )
             )
         )
 
-The guillemet-quoted strings are just intended to be a convenient
-way to write a logical expression (instead of something like
-`Impl(Prop("p"), Prop("q")))` which would be much clumsier).
-
-(And note well that `proof1a` is *not* an operation and may
+(Note well that `proof1a` is *not* an operation and may
 *not* directly access or manipulate the `_conclusion`
 and `_assumptions` fields of the object it creates and returns.)
 
@@ -355,7 +356,7 @@ Then we can say
                 3,
                 (... all the rest of the above proof ...)
             ),
-            «(p → q) → ((q → r) → (p → r))»
+            wff("(p → q) → ((q → r) → (p → r))")
         )
 
 and if we call this function we should not get an error; it
@@ -376,15 +377,15 @@ of function applications, by binding each application to
 a local name.  Like so:
 
     def proof1c1():
-        s1 = suppose(«p», 1)
-        s2 = suppose(«p → q», 3)
+        s1 = suppose(wff("p"), 1)
+        s2 = suppose(wff("p → q"), 3)
         s3 = impl_elim(s1, s2)
-        s4 = suppose(«q → r», 2)
+        s4 = suppose(wff("q → r"), 2)
         s5 = impl_elim(s3, s4)
         s6 = impl_intro(1, s5)
         s7 = impl_intro(2, s6)
         s8 = impl_intro(3, s7)
-        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+        return shows(s8, wff("(p → q) → ((q → r) → (p → r))"))
 
 This layout is immediately, in some ways, more readable.  It
 comes at the cost of having to introduce and manage all those
@@ -401,15 +402,15 @@ First let's re-arrange the proof steps to show that they
 can indeed nest.
 
     def proof1c2():
-        s1 = suppose(«p → q», 3)
-        s2 = suppose(«q → r», 2)
-        s3 = suppose(«p», 1)
+        s1 = suppose(wff("p → q"), 3)
+        s2 = suppose(wff("q → r"), 2)
+        s3 = suppose(wff("p"), 1)
         s4 = impl_elim(s3, s1)
         s5 = impl_elim(s4, s2)
         s6 = impl_intro(1, s5)
         s7 = impl_intro(2, s6)
         s8 = impl_intro(3, s7)
-        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+        return shows(s8, wff("(p → q) → ((q → r) → (p → r))"))
 
 Now let's pretend we've rewritten `suppose` to be a context
 manager.  Instead of taking a label as an argument, `suppose`
@@ -419,15 +420,15 @@ argument, `impl_intro` pops the label off that stack.
 This lets us write:
 
     def proof1c3():
-        with suppose(«p → q») as s1:
-            with suppose(«q → r») as s2:
-                with suppose(«p») as s3:
+        with suppose(wff("p → q")) as s1:
+            with suppose(wff("q → r")) as s2:
+                with suppose(wff("p")) as s3:
                     s4 = impl_elim(s3, s1)
                     s5 = impl_elim(s4, s2)
                     s6 = impl_intro(s5)
                 s7 = impl_intro(s6)
             s8 = impl_intro(s7)
-        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+        return shows(s8, wff("(p → q) → ((q → r) → (p → r))"))
 
 ...which matches pretty closely with a Fitch-style exposition.
 It's still lacking a few things; mainly, the lines after a
@@ -446,12 +447,12 @@ definitions, although it does begin to look a bit less Fitch-like:
                     s4 = impl_elim(s3, s1)
                     s5 = impl_elim(s4, s2)
                     return impl_intro(s5, lab3)
-                s6 = inner3(suppose(«p»))
+                s6 = inner3(suppose(wff("p")))
                 return impl_intro(s6, lab2)
-            s7 = inner2(suppose(«q → r»))
+            s7 = inner2(suppose(wff("q → r")))
             return impl_intro(s7, lab1)
-        s8 = inner1(suppose(«p → q»))
-        return shows(s8, «(p → q) → ((q → r) → (p → r))»)
+        s8 = inner1(suppose(wff("p → q")))
+        return shows(s8, wff("(p → q) → ((q → r) → (p → r))"))
 
 You can, however, probably imagine an alternate syntax for this
 that is more properly Fitch-like.  It would be simply an exercise

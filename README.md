@@ -7,7 +7,7 @@ _See also:_ [Philomath](https://github.com/catseye/Philomath#readme)
 
 - - - -
 
-This repository houses an article that tries to show the development
+This article shows a (perhaps unorthodox) development
 of a simple LCF-style theorem prover for propositional logic
 in a Natural Deduction system.
 
@@ -16,8 +16,8 @@ observations about LCF-style theorem provers and Natural Deduction.
 It then proceeds to tie them together with some Python-like
 pseudo-code, and concludes with a handful of further interesting observations.
 
-This repository contains only pseudo-code; for implementations of these
-ideas in real programming languages, look at projects hosted in other repositories,
+This article contains only pseudo-code; for implementations of these
+ideas in real programming languages, have a look at projects
 such as [**Philomath**](https://github.com/catseye/philomath) (in ANSI C).
 
 ### Table of Contents
@@ -43,7 +43,7 @@ To do this, you have a data type representing valid proofs.
 You have some operations that produce trivial valid proofs.
 
 You have some other operations that take valid proofs and
-transform them to produce new valid proofs.
+transform them in some way to produce new valid proofs.
 
 You don't provide any other way to produce or mutate such
 a data object.  In this way, these data objects are guaranteed
@@ -62,23 +62,28 @@ Scheme (see, e.g., "[Information Hiding in Scheme][]"), even though
 a type theorist would call Scheme an "untyped" language.  (The rest of
 the world would probably call it "dynamically typed" or "latently typed".)
 
-(3) Taking 1 and 2 together, one may conclude that "Parse, don't Validate"
-in general doesn't rely on a static type system either.
+(3) Incidentally, taking 1 and 2 together, one may conclude that
+"Parse, don't Validate" _in general_ doesn't rely on a static type
+system, either.
 
 (4) Actually preventing the mutation of such a data object on a
 _real computer_ is probably impossible.  Can you not always run
 the program under `gdb` and alter a few bytes here and there?
 It's probably more productive to view it as a proviso: _if_ the
 data object was constructed only by these operations and no
-others, _then_ it represents a valid proof.  You could even have
-an LCF-style theorem prover in a language with only "voluntary"
-encapsulation, like Python, under such a proviso.
+others, _then_ it represents a valid proof.  Under such a proviso,
+one could even have an LCF-style theorem prover in a language with
+only "voluntary" encapsulation, such as Python.
 
 Natural Deduction
 -----------------
 
-[The IEP article on Natural Deduction][]
-is a good overview, and I'll follow parts of it closely here.
+A good tutorial on Natural Deduction is the first chapter of the book
+[Logic in Computer Science][] by Huth and Ryan, which is available
+for borrowing from archive.org.
+
+[The IEP article on Natural Deduction][] by Andrzej Indrzejczak
+is also a good overview, and I'll follow parts of it closely here.
 
 In particular, it proposes some criteria for distinguishing Natural
 Deduction proof systems from other proof systems.  In ND systems,
@@ -135,8 +140,9 @@ This leaves me a few options:
     [employ some contortions to achieve encapsulation][] and
     ask you to ignore them, and hope that they do not distract you;
 *   Write it in an object-oriented language with encapsulation, and
-    ask you to ignore the types _and_ the object-oriented bits, as
-    they are both distractions;
+    ask you to ignore the types _and_ the object-oriented features
+    (such as inheritance and polymorphism), as they are _both_
+    distractions;
 *   Write it in pseudo-code and ask you to kind of bear with me
     and play along as I hoc up some some ad-hoc notation for it.
 
@@ -147,9 +153,9 @@ earlier.)
 
 So, this code will deal with `Proof` objects with some
 attributes whose names begin with single underscore.  Just
-pretend that the operations described here are the _only_
-operations that can access these attributes.  All other
-operations are magically prevented from doing so.
+pretend that the functions we define here are the _only_
+functions that can access these attributes.  All other
+code is just magically prevented from accessing them.
 
 These attributes are:
 
@@ -192,10 +198,10 @@ we must take care, which is this: any assumptions already made
 in the premises must be carried over and preserved in the
 conclusion.
 
-Additionally, discovering two copies of the same label refer
-to two different propositional formulas indicates some kind
-of mistake in the proof construction, and should be flagged
-as such.
+Additionally, if we ever discover that two copies of the same label
+refer to two different propositional formulas, this indicates some kind
+of mistake in the proof construction, and we should take care to
+flag it as such.
 
 To achieve these ends we would benefit from defining a helper
 function, something like:
@@ -575,6 +581,7 @@ tactics) in the host language.
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/
 [Parse, don't Validate]: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
+[Logic in Computer Science]: https://archive.org/details/logicincomputers0000huth
 [Information Hiding in Scheme]: https://github.com/cpressey/Information-Hiding-in-Scheme
 [employ some contortions to achieve encapsulation]: https://github.com/cpressey/Information-Hiding-in-Scheme
 [The LCF Approach to Theorem Proving]: https://www.cl.cam.ac.uk/~jrh13/slides/manchester-12sep01/slides.pdf

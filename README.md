@@ -1,4 +1,4 @@
-LCF-Style-ND
+LCF-style ND
 ============
 
 _See also:_ [Philomath](https://github.com/catseye/Philomath#readme)
@@ -187,10 +187,10 @@ The basic operation to produce a trivial valid proof takes
 a propositional sentence and a label and produces a proof with
 that sentence as an assumption.  Something like:
 
-    def suppose(prop, label):
+    def suppose(formula, label):
         return Proof(
-            _assumptions={label: prop},
-            _conclusion=prop
+            _assumptions={label: formula},
+            _conclusion=formula
         )
 
 We will also have a set of operations that represent inference
@@ -223,37 +223,40 @@ function, something like:
 Now we can write the operation corresponding to the inference
 rule of conjunction-introduction:
 
-    def conj_intro(p, q):
-        """If p is proved, and q is proved, then p & q is proved."""
-        assert isinstance(p, Proof)
-        assert isinstance(q, Proof)
+    def conj_intro(x, y):
+        """If x is proved, and y is proved, then x & y is proved."""
+        assert isinstance(x, Proof)
+        assert isinstance(y, Proof)
         return Proof(
-            _conclusion=Conj(p._conclusion, q._conclusion),
+            _conclusion=Conj(x._conclusion, y._conclusion),
             _assumptions=merge_assumptions(
-                p._assumptions, q._assumptions
+                x._assumptions, y._assumptions
             )
         )
 
-Note that, when writing an inference rule in natural deduction,
-we would typically notate variables which take on proofs with
-Greek letters.  Instead of doing that in this code, we are
-using Latin letters, in this case `p` and `q`.  (Note that these
-variables do represent proofs, and not particular propositional
-variables that appear in the propositional statements themselves.
-Those would be represented by `Var("p")` or similar.)
+(Note that traditionally, Greek letters are used for the variables
+representing proofs in the premises and conclusion of an inference rule.
+We will avoid them here, because they don't work as well in pseudo-code
+as they do in typeset mathematics; they don't flow quite as naturally.
+Writing them out seems awkward too (`phi` and `psi` are too similar),
+so we will use Latin letters instead.  But also, though it might make
+sense to use the letter `p` for a variable for "proof", it would be
+too easy to confuse with `p` used as a propositional variable (which
+it commonly is.)  So we will use `x`, `y`, `z` for variables that
+represent proofs.)
 
 Conjunction-elimination is also reasonably simple.  We
 assert that the conclusion has a certain structure, and then we
 take it apart.  `side` is a parameter which tells which
 side we want to keep: `'L'` for left, `'R'` for right.
 
-    def conj_elim(r, side):
-        """If r (of the form p & q) is proved, then p (alternately q) is proved."""
-        assert isinstance(r, Proof)
-        assert isinstance(r._conclusion, Conj)
+    def conj_elim(z, side):
+        """If z (of the form x & y) is proved, then x (alternately y) is proved."""
+        assert isinstance(z, Proof)
+        assert isinstance(z._conclusion, Conj)
         return Proof(
-            _conclusion={'L': r._conclusion.lhs, 'R': r._conclusion.rhs}[side],
-            _assumptions=r._assumptions
+            _conclusion={'L': z._conclusion.lhs, 'R': z._conclusion.rhs}[side],
+            _assumptions=z._assumptions
         )
 
 We did the rules for conjunctions first because they are very
@@ -264,16 +267,16 @@ of inference rules that will let us write a small, but
 meaningful, proof.  Here is implication-elimination, also
 known as _modus ponens_:
 
-    def impl_elim(p, r):
-        """If p is proved, and r (of the form p → q) is proved, then q is proved."""
-        assert isinstance(p, Proof)
-        assert isinstance(r, Proof)
-        assert isinstance(r._conclusion, Impl)
-        assert r._conclusion.lhs == p._conclusion
+    def impl_elim(x, y):
+        """If x is proved, and y (of the form x → z) is proved, then z is proved."""
+        assert isinstance(x, Proof)
+        assert isinstance(y, Proof)
+        assert isinstance(y._conclusion, Impl)
+        assert y._conclusion.lhs == x._conclusion
         return Proof(
-            _conclusion=r._conclusion.rhs,
+            _conclusion=y._conclusion.rhs,
             _assumptions=merge_assumptions(
-                p._assumptions, r._assumptions
+                x._assumptions, y._assumptions
             )
         )
 
@@ -283,15 +286,15 @@ this assumption, we will pass in its label.  An assumption
 with that label must be present on the proof step that we
 also pass in.
 
-    def impl_intro(label, q):
-        """If q is proved under the assumption p, then p → q is proved."""
-        assert isinstance(q, Proof)
-        assert label in q._assumptions
-        a = q._assumptions.copy()
-        prop = a[label]
+    def impl_intro(label, y):
+        """If y is proved under the assumption x, then x → y is proved."""
+        assert isinstance(y, Proof)
+        assert label in y._assumptions
+        a = y._assumptions.copy()
+        fx = a[label]
         delete a[label]
         return Proof(
-            _conclusion=Impl(prop, q._conclusion),
+            _conclusion=Impl(fx, y._conclusion),
             _assumptions=a
         )
 
@@ -342,11 +345,11 @@ conclusions, we probably would still want to show the final
 conclusion that we set out to prove, for clarity.  So, we can
 define another helper function like
 
-    def shows(p, conclusion):
-        assert isinstance(p, Proof)
-        assert len(p._assumptions) == 0
-        assert p._conclusion == conclusion
-        return p
+    def shows(x, conclusion):
+        assert isinstance(x, Proof)
+        assert len(x._assumptions) == 0
+        assert x._conclusion == conclusion
+        return x
 
 Then we can say
 
@@ -481,47 +484,47 @@ In prose, we can read this as "If φ ∨ ψ is proved, and if
 we can prove χ under the assumption φ, and we can prove
 χ under the assumption ψ, then χ is proved."
 
-From this, we know we need to take a proof (call it `r`)
+From this, we know we need to take a proof (call it `z`)
 and assert that its conclusion has a certain form (`Disj`);
 and we will need to take another proof, and a label (call
 them `s` and `l1`); and yet another proof and a label
 (call them `t` and `l2`).
 
-At the labels we will locate `p` and `q` and assert that
-those are what `r` breaks up into.
+At the labels we will locate `x` and `y` and assert that
+those are what `z` breaks up into.
 
 We will assert that `s` and `t` also represent the same
 conclusion, and that is what we will return.  We will
-discharge the assumptions `p` and `q`, but we will also
+discharge the assumptions `x` and `y`, but we will also
 need to carry forward any undischarged assumptions that
-may still be in `r`, `s`, and `t`.
+may still be in `z`, `s`, and `t`.
 
 Which means the function must look like this:
 
-    def disj_elim(r, s, l1, t, l2):
-        assert isinstance(r, Proof)
-        assert isinstance(r._conclusion, Disj)
+    def disj_elim(z, s, l1, t, l2):
+        assert isinstance(z, Proof)
+        assert isinstance(z._conclusion, Disj)
 
         assert isinstance(s, Proof)
         assert l1 in s._assumptions
         a_s = s._assumptions.copy()
-        p1 = a_s[l1]
+        fx = a_s[l1]
         delete a_s[l1]
 
         assert isinstance(t, Proof)
         assert l2 in t._assumptions
-        a_t = t._assumptions.copy()
+        fy = t._assumptions.copy()
         q1 = a_t[l1]
         delete a_t[l1]
 
         assert s._conclusion == t._conclusion
-        assert r._conclusion.lhs == p
-        assert r._conclusion.rhs == q
+        assert z._conclusion.lhs == fx
+        assert z._conclusion.rhs == fy
 
         return Proof(
             _conclusion=s._conclusion,
             _assumptions=merge_assumptions(
-                r._assumptions,
+                z._assumptions,
                 merge_assumptions(a_s, a_t)
             )
         )

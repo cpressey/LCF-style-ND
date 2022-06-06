@@ -467,8 +467,8 @@ across.  I could say the rest are left as an exercise for
 the reader.  But, one in particular is perhaps still worth
 doing, and that's disjunction-elimination, and the reason
 it's perhaps worth doing, is because it's complex.  If you
-can translate it into a function, you can probably translate
-any inference rule into a function.
+can translate _it_ into a function, you can probably translate
+_any_ inference rule into a function.
 
 Pictorially, disjunction-elimination is usually shown as
 something like
@@ -513,8 +513,8 @@ Which means the function must look like this:
 
         assert isinstance(t, Proof)
         assert l2 in t._assumptions
-        fy = t._assumptions.copy()
-        q1 = a_t[l1]
+        a_t = t._assumptions.copy()
+        fy = a_t[l1]
         delete a_t[l1]
 
         assert s._conclusion == t._conclusion

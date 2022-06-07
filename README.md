@@ -25,6 +25,7 @@ such as [**Philomath**](https://github.com/catseye/philomath) (in ANSI C).
 *   [LCF-style Theorem Proving](#lcf-style-theorem-proving)
 *   [Natural Deduction](#natural-deduction)
 *   [Pseudo-Code for the Theorem Prover](#pseudo-code-for-the-theorem-prover)
+*   [Conclusion](#conclusion)
 
 LCF-style Theorem Proving
 -------------------------
@@ -534,7 +535,8 @@ Which means the function must look like this:
 
 Whew!
 
-### Conclusion
+Conclusion
+----------
 
 We'll conclude with an assortment of additional observations,
 ones which suggest avenues for future work.

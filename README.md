@@ -7,7 +7,7 @@ _See also:_ [Philomath](https://github.com/catseye/Philomath#readme)
 
 - - - -
 
-This article shows a (perhaps unorthodox) development
+This article presents a (perhaps unorthodox) development
 of a simple LCF-style theorem prover for propositional logic
 in a Natural Deduction system.
 
@@ -79,8 +79,8 @@ Natural Deduction
 -----------------
 
 A good tutorial on Natural Deduction is the first chapter of the book
-[Logic in Computer Science][] by Huth and Ryan, which is available
-for borrowing from archive.org.
+[Logic in Computer Science][] (archive.org, 1st ed., borrowable) by
+Michael Huth and Mark Ryan.
 
 [The IEP article on Natural Deduction][] by Andrzej Indrzejczak
 is also a good overview, and I'll follow parts of it closely here.
@@ -108,9 +108,9 @@ which we can build arbitrary contrivances to help us work with them.
 An ND proof may be presented in a tree format or in a list format.
 An LCF-style proof in an applicative language is a set of function
 applications, which has the shape of a tree.  If we bind each
-application to an identifier (as in a `let`-type construct) we obtain
-a flattened list, where each proof step (application) may refer to
-earlier proof steps.
+application to an identifier (using `let` or a similar language
+construct), we obtain a flattened list, where each proof step
+(application) may refer to earlier proof steps.
 
 In the tree format, assumptions are labelled when introduced, so
 that when an assumption is discharged, we know which one it is.
@@ -140,7 +140,7 @@ This leaves me a few options:
     [employ some contortions to achieve encapsulation][] and
     ask you to ignore them, and hope that they do not distract you;
 *   Write it in an object-oriented language with encapsulation, and
-    ask you to ignore the types _and_ the object-oriented features
+    ask you to ignore the type system _and_ the object-oriented features
     (such as inheritance and polymorphism), as they are _both_
     distractions;
 *   Write it in pseudo-code and ask you to kind of bear with me
@@ -155,7 +155,7 @@ So, this code will deal with `Proof` objects with some
 attributes whose names begin with single underscore.  Just
 pretend that the functions we define here are the _only_
 functions that can access these attributes.  All other
-code is just magically prevented from accessing them.
+code is just, you know, magically prevented from accessing them.
 
 These attributes are:
 

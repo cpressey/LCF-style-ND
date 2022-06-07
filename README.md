@@ -159,9 +159,9 @@ code is just, you know, magically prevented from accessing them.
 
 These attributes are:
 
-*   `_conclusion` -- a propositional formula which
+*   `_conclusion` — a propositional formula which
     is the proved statement
-*   `_assumptions` -- a dict mapping labels to
+*   `_assumptions` — a dict mapping labels to
     propositional formulas, which are the assumptions
     under which the `_conclusion` is proved.
 
@@ -242,7 +242,7 @@ as they do in typeset mathematics.  Writing out their names seems awkward too
 (`phi` and `psi` are too similar, as names go,) so we will use Latin letters
 instead.  But!  When using Latin letters it might make sense to use the letter
 `p` for a variable for "proof", it would be too easy to confuse this with `p`
-used as a propositional variable -- which it commonly is.  So in this exposition
+used as a propositional variable — which it commonly is.  So in this exposition
 we will use `x`, `y`, `z` for variables that represent proofs.  Also, when we have
 a propositional formula rather than a proof, we may add an `f` in the name.)
 
@@ -334,7 +334,7 @@ Our function application that corresponds to that proof is
 and `_assumptions` fields of the object it creates and returns.)
 
 The formatting of this function application is intentionally
-very tree-like, to try to make it clearer how it corresponds
+very tree-like, to try to more clearly show how it corresponds
 with the tree presentation of the proof in the IEP article.
 
 The glaring difference between this and a tree-structured proof
@@ -343,8 +343,8 @@ the conclusion at each step, while in the function application,
 the valid proof is merely being passed as a parameter to the
 enclosing function, and not shown in the source code.
 
-Even if we found it acceptable to omit those explicit intermediate
-conclusions, we probably would still want to show the final
+Even if we find it acceptable to omit explicit intermediate
+conclusions, we probably still do want to show the final
 conclusion that we set out to prove, for clarity.  So, we can
 define another helper function like
 
@@ -374,8 +374,8 @@ Note that the `shows` function could also be used on
 intermediate steps, if desired.
 
 But even if you used it on every intermediate step, this
-layout seems a bit awkward.  It corresponds with the tree
-proof in the article, but it's oriented sideways.
+layout seems a bit awkward.  Compared to the proof tree
+displayed in the article, it's oriented sideways.
 
 Natural deduction proofs can also be written out linearly,
 as a list of steps.  We can do that with our big nest
@@ -418,8 +418,8 @@ can indeed nest.
         s8 = impl_intro(3, s7)
         return shows(s8, wff("(p → q) → ((q → r) → (p → r))"))
 
-Now let's pretend we've rewritten `suppose` to be a context
-manager.  Instead of taking a label as an argument, `suppose`
+Now let's pretend we've rewritten `suppose` to be a Python-style
+context manager.  Instead of taking a label as an argument, `suppose`
 now generates its own unique label and pushes it onto a
 stack.  And now, also instead of taking a label as an
 argument, `impl_intro` pops the label off that stack.
@@ -464,7 +464,7 @@ You can, however, probably imagine an alternate syntax for this
 that is more properly Fitch-like.  It would be simply an exercise
 in syntactic sugar, so I won't dwell on it.
 
-Now, to go back to the inference rules.  We haven't given
+Back to the rules of inference.  We haven't given
 a full set, but I think we've given enough to get the idea
 across.  I could say the rest are left as an exercise for
 the reader.  But, one in particular is perhaps still worth
@@ -484,14 +484,14 @@ something like
                       χ
 
 In prose, we can read this as "If φ ∨ ψ is proved, and if
-we can prove χ under the assumption φ, and we can prove
+we can prove χ under the assumption φ, and if we can prove
 χ under the assumption ψ, then χ is proved."
 
 From this, we know we need to take a proof (call it `z`)
 and assert that its conclusion has a certain form (`Disj`);
 and we will need to take another proof, and a label (call
-them `s` and `l1`); and yet another proof and a label
-(call them `t` and `l2`).
+them `s` and `x_label`); and yet another proof and a label
+(call them `t` and `y_label`).
 
 At the labels we will locate `x` and `y` and assert that
 those are what `z` breaks up into.
@@ -504,21 +504,21 @@ may still be in `z`, `s`, and `t`.
 
 Which means the function must look like this:
 
-    def disj_elim(z, s, l1, t, l2):
+    def disj_elim(z, s, x_label, t, y_label):
         assert isinstance(z, Proof)
         assert isinstance(z._conclusion, Disj)
 
         assert isinstance(s, Proof)
-        assert l1 in s._assumptions
+        assert x_label in s._assumptions
         a_s = s._assumptions.copy()
-        fx = a_s[l1]
-        delete a_s[l1]
+        fx = a_s[x_label]
+        delete a_s[x_label]
 
         assert isinstance(t, Proof)
-        assert l2 in t._assumptions
+        assert y_label in t._assumptions
         a_t = t._assumptions.copy()
-        fy = a_t[l1]
-        delete a_t[l1]
+        fy = a_t[y_label]
+        delete a_t[y_label]
 
         assert s._conclusion == t._conclusion
         assert z._conclusion.lhs == fx
@@ -536,14 +536,14 @@ Whew!
 
 ### Conclusion
 
-We'll conclude with a couple of more observations, ones which
-suggest avenues for future work.
+We'll conclude with an assortment of additional observations,
+ones which suggest avenues for future work.
 
 The first is that, while you can certainly build a proof with
 these functions, you have to actually _run_ the constructed
 program to check if the proof is valid.  And confirming that
 the proof is valid is _all_ the program does.  And as
-computational tasks go, that's really not a very complex one --
+computational tasks go, that's really not a very complex one —
 there aren't any loops, or even any conditionals, in these
 inference rules we've written.
 
@@ -554,7 +554,7 @@ analysis, such as constant folding and abstract interpretation,
 to statically analyze the steps, and obtain the confirmation of
 validity of the proof at compile-time rather than runtime.
 
-Similarly, you might think of writing it as a macro -- another
+Similarly, you might think of writing it as a macro — another
 compile-time thing.
 
 Having not tried it, I cannot say exactly how it does end up,

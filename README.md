@@ -163,7 +163,7 @@ These attributes are:
     is the proved statement
 *   `_assumptions` -- a dict mapping labels to
     propositional formulas, which are the assumptions
-    under which the `_conclusion` is proved true.
+    under which the `_conclusion` is proved.
 
 Propositional formulas are represented with an abstract syntax
 tree structure, whose nodes are objects from classes
@@ -178,14 +178,15 @@ formulas as much as it likes.
 
 In particular, in order to avoid writing clumsy
 formula-tree-building code like `Impl(Var("p"), Var("q")))`,
-assume we have a helper function `wff` which parses strings
+we'll assume we have a helper function `wff` which parses strings
 containing propositional formulas, like so: `wff("p → q")`.
 
 Now, on to the actual operations.
 
 The basic operation to produce a trivial valid proof takes
-a propositional sentence and a label and produces a proof with
-that sentence as an assumption.  Something like:
+a propositional formula and a label, and produces a proof with
+the given formula as an assumption with the given label.  The
+code would be something like:
 
     def suppose(formula, label):
         return Proof(
@@ -235,20 +236,22 @@ rule of conjunction-introduction:
         )
 
 (Note that traditionally, Greek letters are used for the variables
-representing proofs in the premises and conclusion of an inference rule.
-We will avoid them here, because they don't work as well in pseudo-code
-as they do in typeset mathematics; they don't flow quite as naturally.
-Writing them out seems awkward too (`phi` and `psi` are too similar),
-so we will use Latin letters instead.  But also, though it might make
-sense to use the letter `p` for a variable for "proof", it would be
-too easy to confuse with `p` used as a propositional variable (which
-it commonly is.)  So we will use `x`, `y`, `z` for variables that
-represent proofs.)
+representing proofs appearing in the premises and conclusion of an inference rule.
+We will avoid them here, because they don't seem to work as well in pseudo-code
+as they do in typeset mathematics.  Writing out their names seems awkward too
+(`phi` and `psi` are too similar, as names go,) so we will use Latin letters
+instead.  But!  When using Latin letters it might make sense to use the letter
+`p` for a variable for "proof", it would be too easy to confuse this with `p`
+used as a propositional variable -- which it commonly is.  So in this exposition
+we will use `x`, `y`, `z` for variables that represent proofs.  Also, when we have
+a propositional formula rather than a proof, we may add an `f` in the name.)
 
 Conjunction-elimination is also reasonably simple.  We
 assert that the conclusion has a certain structure, and then we
 take it apart.  `side` is a parameter which tells which
-side we want to keep: `'L'` for left, `'R'` for right.
+side we want to keep: `'L'` for left, `'R'` for right.  (The other
+option would be to write two rather similar functions for two
+rather similar rules of inference.)
 
     def conj_elim(z, side):
         """If z (of the form x & y) is proved, then x (alternately y) is proved."""
@@ -286,13 +289,13 @@ this assumption, we will pass in its label.  An assumption
 with that label must be present on the proof step that we
 also pass in.
 
-    def impl_intro(label, y):
+    def impl_intro(x_label, y):
         """If y is proved under the assumption x, then x → y is proved."""
         assert isinstance(y, Proof)
-        assert label in y._assumptions
+        assert x_label in y._assumptions
         a = y._assumptions.copy()
-        fx = a[label]
-        delete a[label]
+        fx = a[x_label]
+        delete a[x_label]
         return Proof(
             _conclusion=Impl(fx, y._conclusion),
             _assumptions=a

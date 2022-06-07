@@ -559,7 +559,7 @@ validity of the proof at compile-time rather than runtime.
 Similarly, you might think of writing it as a macro — another
 compile-time thing.
 
-Having not tried it, I cannot say exactly how it does end up,
+Having not yet tried it, I cannot say exactly how it does end up,
 but I would be surprised if the result isn't parallel in some
 way to "propositions as types", since the compile-time-computable
 component can arguably be viewed as a type system.
@@ -567,12 +567,15 @@ component can arguably be viewed as a type system.
 I would guess the resulting system would be fairly trivial for
 propositional logic, but would start to resemble dependent types
 (which is what is more conventionally used for theorem provers)
-if one were to upgrade to first-order logic.
+if one were to upgrade to first-order predicate logic.
 
 The other observation is that our program which expresses and
 checks a proof has a simple structure: a tree of function
 applications.  There is a straightforward way of "refactoring"
-such a program into a data structure: [defunctionalization][].
+such a program into a data structure: [defunctionalization][]
+(Wikipedia).  (And actually, since none of our proof-producing
+functions are higher-order functions, defunctionalizing them
+is trivial.)
 
 In this way, the proof could be expressed as "plain old data"
 (think JSON) and "interpreted" by the program.  In this case,

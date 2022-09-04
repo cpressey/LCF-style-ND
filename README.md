@@ -11,10 +11,10 @@ This article presents a (perhaps unorthodox) development
 of a simple LCF-style theorem prover for propositional logic
 in a Natural Deduction system.
 
-First it contains some brief notes and some (I think) interesting
+It starts with some brief notes and
 observations about LCF-style theorem provers and Natural Deduction.
 It then proceeds to tie them together with some Python-like
-pseudo-code, and concludes with a handful of further interesting observations.
+pseudo-code, and concludes with a handful of further observations.
 
 This article contains only pseudo-code; for implementations of these
 ideas in real programming languages, have a look at projects
@@ -39,16 +39,19 @@ An LCF-style theorem prover, as far as I'm concerned, means this:
 You have a programming language, and you will write your proofs
 directly in this language, as executable programs.
 
-To do this, you have a data type representing valid proofs.
+To do this, you have a data type representing theorems (that is,
+statements for which there is a valid proof).
 
-You have some operations that produce trivial valid proofs.
+You have some operations that produce trivial theorems (ones
+which need no proof to speak of).
 
-You have some other operations that take valid proofs and
-transform them in some way to produce new valid proofs.
+You have some other operations that take theorems and
+transform them in some way to produce new theorems.  These
+operations represent valid proof steps.
 
-You don't provide any other way to produce or mutate such
-a data object.  In this way, these data objects are guaranteed
-to represent valid proofs, and a program that runs and produces
+You don't provide any other way to produce or mutate such a data
+object.  In this way, these data objects are guaranteed to represent
+theorems with valid proofs, and a program that runs and produces
 such a data object as its output, has proved a theorem.
 
 ### Some Observations
@@ -72,7 +75,7 @@ _real computer_ is probably impossible.  Can you not always run
 the program under `gdb` and alter a few bytes here and there?
 It's probably more productive to view it as a proviso: _if_ the
 data object was constructed only by these operations and no
-others, _then_ it represents a valid proof.  Under such a proviso,
+others, _then_ it represents a theorem.  Under such a proviso,
 one could even have an LCF-style theorem prover in a language with
 only "voluntary" encapsulation, such as Python.
 
@@ -98,10 +101,10 @@ rules.
 (3) Rich forms of proof construction are possible.
 
 The first corresponds to LCF-style operations which produce trivial
-valid proofs.  The second corresponds to LCF-style operations which
-transform valid proofs into other valid proofs.  The third
-corresponds to the fact that the data objects representing valid
-proofs are processed by a general-purpose programming language, in
+theorems.  The second corresponds to LCF-style operations which
+transform theorems into other theorems via a valid proof step.  The
+third corresponds to the fact that the data objects representing
+theorems are processed by a general-purpose programming language, in
 which we can build arbitrary contrivances to help us work with them.
 
 ### Some Observations
@@ -152,7 +155,7 @@ because Python is pretty accessible and it's pretty easy to
 pretend it has encapsulation.  (See also the proviso I mentioned
 earlier.)
 
-So, this code will deal with `Proof` objects with some
+So, this code will deal with `Theorem` objects with some
 attributes whose names begin with single underscore.  Just
 pretend that the functions we define here are the _only_
 functions that can access these attributes.  All other
@@ -172,7 +175,7 @@ such as `Conj`, `Disj`, `Impl`, `Var` and so forth.  When
 these are binary operators we assume they have attributes
 called `lhs` and `rhs` containing their child nodes.
 
-Unlike our proof objects, the representation of propositional
+Unlike our theorem objects, the representation of propositional
 formulas will not be hidden from client code.  In fact it
 will be useful for client code to manipulate propositional
 formulas as much as it likes.
@@ -184,13 +187,13 @@ containing propositional formulas, like so: `wff("p → q")`.
 
 Now, on to the actual operations.
 
-The basic operation to produce a trivial valid proof takes
-a propositional formula and a label, and produces a proof with
-the given formula as an assumption with the given label.  The
+The basic operation representing the most basic valid proof step
+takes a propositional formula and a label, and produces a theorem
+with the given formula as an assumption with the given label.  The
 code would be something like:
 
     def suppose(formula, label):
-        return Proof(
+        return Theorem(
             _assumptions={label: formula},
             _conclusion=formula
         )
@@ -227,25 +230,25 @@ rule of conjunction-introduction:
 
     def conj_intro(x, y):
         """If x is proved, and y is proved, then x & y is proved."""
-        assert isinstance(x, Proof)
-        assert isinstance(y, Proof)
-        return Proof(
+        assert isinstance(x, Theorem)
+        assert isinstance(y, Theorem)
+        return Theorem(
             _conclusion=Conj(x._conclusion, y._conclusion),
             _assumptions=merge_assumptions(
                 x._assumptions, y._assumptions
             )
         )
 
-(Note that traditionally, Greek letters are used for the variables
-representing proofs appearing in the premises and conclusion of an inference rule.
-We will avoid them here, because they don't seem to work as well in pseudo-code
+(Note that traditionally, Greek letters are used in the premises and
+conclusion of an inference rule to denote variables representing theorems.
+We will avoid Greek letters here, because they don't seem to work as well in pseudo-code
 as they do in typeset mathematics.  Writing out their names seems awkward too
 (`phi` and `psi` are too similar, as names go,) so we will use Latin letters
 instead.  But!  When using Latin letters it might make sense to use the letter
 `p` for a variable for "proof", it would be too easy to confuse this with `p`
 used as a propositional variable — which it commonly is.  So in this exposition
-we will use `x`, `y`, `z` for variables that represent proofs.  Also, when we have
-a propositional formula rather than a proof, we may add an `f` in the name.)
+we will use `x`, `y`, `z` for variables that represent theorems.  Also, when we have
+a propositional formula rather than a theorem, we may add an `f` in the name.)
 
 Conjunction-elimination is also reasonably simple.  We
 assert that the conclusion has a certain structure, and then we
@@ -256,9 +259,9 @@ rather similar rules of inference.)
 
     def conj_elim(z, side):
         """If z (of the form x & y) is proved, then x (alternately y) is proved."""
-        assert isinstance(z, Proof)
+        assert isinstance(z, Theorem)
         assert isinstance(z._conclusion, Conj)
-        return Proof(
+        return Theorem(
             _conclusion={'L': z._conclusion.lhs, 'R': z._conclusion.rhs}[side],
             _assumptions=z._assumptions
         )
@@ -273,11 +276,11 @@ known as _modus ponens_:
 
     def impl_elim(x, y):
         """If x is proved, and y (of the form x → z) is proved, then z is proved."""
-        assert isinstance(x, Proof)
-        assert isinstance(y, Proof)
+        assert isinstance(x, Theorem)
+        assert isinstance(y, Theorem)
         assert isinstance(y._conclusion, Impl)
         assert y._conclusion.lhs == x._conclusion
-        return Proof(
+        return Theorem(
             _conclusion=y._conclusion.rhs,
             _assumptions=merge_assumptions(
                 x._assumptions, y._assumptions
@@ -287,17 +290,17 @@ known as _modus ponens_:
 Implication-introduction is slightly more complex, as it will
 *discharge* one of the assumptions it's given.  To identify
 this assumption, we will pass in its label.  An assumption
-with that label must be present on the proof step that we
-also pass in.
+with that label must be present on the theorem that we
+also pass in to the function.
 
     def impl_intro(x_label, y):
         """If y is proved under the assumption x, then x → y is proved."""
-        assert isinstance(y, Proof)
+        assert isinstance(y, Theorem)
         assert x_label in y._assumptions
         a = y._assumptions.copy()
         fx = a[x_label]
         delete a[x_label]
-        return Proof(
+        return Theorem(
             _conclusion=Impl(fx, y._conclusion),
             _assumptions=a
         )
@@ -341,8 +344,9 @@ with the tree presentation of the proof in the IEP article.
 The glaring difference between this and a tree-structured proof
 is, of course, that the nodes of the tree-structured proof show
 the conclusion at each step, while in the function application,
-the valid proof is merely being passed as a parameter to the
-enclosing function, and not shown in the source code.
+the theorems are merely being passed in as parameters to the
+enclosing function, and the content of these theorems are not
+shown in the source code.
 
 Even if we find it acceptable to omit explicit intermediate
 conclusions, we probably still do want to show the final
@@ -350,7 +354,7 @@ conclusion that we set out to prove, for clarity.  So, we can
 define another helper function like
 
     def shows(x, conclusion):
-        assert isinstance(x, Proof)
+        assert isinstance(x, Theorem)
         assert len(x._assumptions) == 0
         assert x._conclusion == conclusion
         return x
@@ -488,10 +492,10 @@ In prose, we can read this as "If φ ∨ ψ is proved, and if
 we can prove χ under the assumption φ, and if we can prove
 χ under the assumption ψ, then χ is proved."
 
-From this, we know we need to take a proof (call it `z`)
+From this, we know we need to take a theorem (call it `z`)
 and assert that its conclusion has a certain form (`Disj`);
-and we will need to take another proof, and a label (call
-them `s` and `x_label`); and yet another proof and a label
+and we will need to take another theorem, and a label (call
+them `s` and `x_label`); and yet another theorem and a label
 (call them `t` and `y_label`).
 
 At the labels we will locate `x` and `y` and assert that
@@ -506,16 +510,16 @@ may still be in `z`, `s`, and `t`.
 Which means the function must look like this:
 
     def disj_elim(z, s, x_label, t, y_label):
-        assert isinstance(z, Proof)
+        assert isinstance(z, Theorem)
         assert isinstance(z._conclusion, Disj)
 
-        assert isinstance(s, Proof)
+        assert isinstance(s, Theorem)
         assert x_label in s._assumptions
         a_s = s._assumptions.copy()
         fx = a_s[x_label]
         delete a_s[x_label]
 
-        assert isinstance(t, Proof)
+        assert isinstance(t, Theorem)
         assert y_label in t._assumptions
         a_t = t._assumptions.copy()
         fy = a_t[y_label]
@@ -525,7 +529,7 @@ Which means the function must look like this:
         assert z._conclusion.lhs == fx
         assert z._conclusion.rhs == fy
 
-        return Proof(
+        return Theorem(
             _conclusion=s._conclusion,
             _assumptions=merge_assumptions(
                 z._assumptions,
@@ -543,7 +547,7 @@ ones which suggest avenues for future work.
 
 The first is that, while you can certainly build a proof with
 these functions, you have to actually _run_ the constructed
-program to check if the proof is valid.  And confirming that
+program to check that the proof is valid.  And confirming that
 the proof is valid is _all_ the program does.  And as
 computational tasks go, that's really not a very complex one —
 there aren't any loops, or even any conditionals, in these
@@ -566,21 +570,23 @@ component can arguably be viewed as a type system.
 
 I would guess the resulting system would be fairly trivial for
 propositional logic, but would start to resemble dependent types
-(which is what is more conventionally used for theorem provers)
 if one were to upgrade to first-order predicate logic.
+Dependent types are what are more conventionally used for theorem
+provers anyway, so this makes a certain amount of sense.  It has
+a certain logic to it, if you will.
 
 The other observation is that our program which expresses and
 checks a proof has a simple structure: a tree of function
 applications.  There is a straightforward way of "refactoring"
 such a program into a data structure: [defunctionalization][]
-(Wikipedia).  (And actually, since none of our proof-producing
+(Wikipedia).  (And actually, since none of our theorem-producing
 functions are higher-order functions, defunctionalizing them
 is trivial.)
 
-In this way, the proof could be expressed as "plain old data"
-(think JSON) and "interpreted" by the program.  In this case,
+In this way, the entire proof could be expressed as "plain old data"
+(think: JSON) and "interpreted" by the program.  In this case,
 the programming language needn't support information hiding;
-the program is prevented from producing an incorrect proof
+the program is prevented from producing an incorrect theorem
 object by virtue of the fact that the "interpreter" is closed,
 and does not allow any external code (i.e. code that could
 potentially modify the proof object in process in invalid ways)
@@ -588,7 +594,7 @@ to be executed before the proof checking process terminates.
 
 It would admittedly be a stretch to call the resulting
 theorem prover "LCF-style" though, as it would no longer be
-possible to write arbitrary proof-manipulating code (e.g.
+possible to write arbitrary proof-constructing code (e.g.
 tactics) in the host language.
 
 [The IEP article on Natural Deduction]: https://iep.utm.edu/nat-ded/
